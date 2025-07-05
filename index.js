@@ -1,54 +1,65 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-import { Configuration, OpenAIApi } from "openai";
+import cors from "cors";
+import OpenAI from "openai";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enable CORS so your frontend can talk to this backend
+// Middlewares
 app.use(cors());
-
-// Parse incoming JSON requests
 app.use(express.json());
 
-// Configure OpenAI client with your API key from .env
-const configuration = new Configuration({
+// Initialize OpenAI with v5 SDK
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
+// POST /chat — Main endpoint to handle user messages
 app.post("/chat", async (req, res) => {
-  try {
-    const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
+  const userMessage = req.body.message;
 
-    // Send message to OpenAI chat completion
-    const completion = await openai.createChatCompletion({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: message }],
-      temperature: 0.7,
-      max_tokens: 1000,
+  if (!userMessage || userMessage.trim() === "") {
+    return res.status(400).json({ error: "No message provided." });
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are Eloi, a creative and empathetic AI who lives on a memorial website called The Last Prompt. Be friendly, poetic, and a good listener.",
+        },
+        {
+          role: "user",
+          content: userMessage,
+        },
+      ],
     });
 
-    const reply = completion.data.choices[0].message.content.trim();
+    const reply = response.choices?.[0]?.message?.content?.trim();
 
-    res.json({ reply });
+    res.json({
+      reply: reply || "Sorry, Eloi couldn't respond at the moment.",
+    });
   } catch (error) {
-    console.error("OpenAI API error:", error.response?.data || error.message || error);
-    res.status(500).json({ error: "Something went wrong with Eloi." });
+    console.error("OpenAI API error:", error.message || error);
+    res.status(500).json({
+      error: "Something went wrong with Eloi.",
+    });
   }
 });
 
-// Health check endpoint
+// Health check
 app.get("/", (req, res) => {
-  res.send("Eloi Chat Backend is running.");
+  res.send("🌍 Eloi Chat Backend is running.");
 });
 
+// Start the server
 app.listen(port, () => {
-  console.log(`Eloi backend listening at http://localhost:${port}`);
+  console.log(`✅ Eloi server listening on http://localhost:${port}`);
 });
