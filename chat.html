@@ -2,113 +2,237 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Eloi Live Chat</title>
+  <title>The Last Prompt — Chat with Eloi</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    :root {
+      --color-bg-light: #f4f0fa;
+      --color-text-light: #222;
+      --color-bg-dark: #1e1e2f;
+      --color-text-dark: #ddd;
+      --color-primary: #764ba2;
+      --color-primary-hover: #a55eea;
+    }
+
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       max-width: 600px;
       margin: 2rem auto;
-      padding: 1rem;
-      background: #f0e9ff;
       display: flex;
       flex-direction: column;
       height: 90vh;
+      background: var(--color-bg-light);
+      color: var(--color-text-light);
+      transition: background-color 0.4s, color 0.4s;
     }
+    body.dark {
+      background: var(--color-bg-dark);
+      color: var(--color-text-dark);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    #dark-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: var(--color-primary);
+      border: none;
+      color: white;
+      font-size: 1.25rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      z-index: 10;
+    }
+    #dark-toggle:hover {
+      background: var(--color-primary-hover);
+    }
+
     #messages {
       flex-grow: 1;
-      border: 1px solid #ccc;
-      background: white;
-      padding: 1rem;
       overflow-y: auto;
-      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 2px solid var(--color-primary);
       border-radius: 8px;
+      background: white;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+      transition: background-color 0.4s;
     }
+    body.dark #messages {
+      background: #2a2a3d;
+    }
+
     .message {
       margin-bottom: 1rem;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeInUp 0.4s forwards;
+      max-width: 80%;
+      word-wrap: break-word;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      line-height: 1.3;
     }
     .message.user {
+      background: var(--color-primary);
+      color: white;
+      margin-left: auto;
       text-align: right;
-      color: #4b0082;
     }
     .message.eloi {
-      text-align: left;
-      color: #006400;
+      background: var(--color-primary-hover);
+      color: white;
+      margin-right: auto;
+      font-style: italic;
     }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     form {
       display: flex;
       gap: 0.5rem;
     }
     input[type="text"] {
       flex-grow: 1;
-      padding: 0.5rem 1rem;
+      padding: 0.75rem;
       font-size: 1rem;
       border-radius: 25px;
-      border: 1px solid #ccc;
+      border: 2px solid var(--color-primary);
       outline: none;
+      transition: border-color 0.3s;
+      background: white;
+      color: var(--color-text-light);
     }
+    body.dark input[type="text"] {
+      background: #3a3a5c;
+      color: var(--color-text-dark);
+      border-color: var(--color-primary-hover);
+    }
+    input[type="text"]:focus {
+      border-color: var(--color-primary-hover);
+    }
+
     button {
       padding: 0 1.5rem;
-      border: none;
+      font-size: 1rem;
       border-radius: 25px;
-      background-color: #4b0082;
+      border: none;
+      background-color: var(--color-primary);
       color: white;
-      font-weight: bold;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     button:hover {
-      background-color: #35006b;
+      background-color: var(--color-primary-hover);
+    }
+    button:disabled {
+      background-color: #a0a0a0;
+      cursor: not-allowed;
+    }
+
+    #loading {
+      text-align: center;
+      font-style: italic;
+      margin-bottom: 1rem;
+      color: var(--color-primary-hover);
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Eloi Live Chat</h1>
-  <div id="messages">Say hello to Eloi!</div>
+  <button id="dark-toggle" title="Toggle Dark Mode">🌙</button>
+
+  <h1>Chat with Eloi</h1>
+
+  <div id="messages">
+    <p>No messages yet. Say hi!</p>
+  </div>
+
+  <div id="loading">Eloi is thinking...</div>
+
   <form id="chat-form">
-    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off" required />
+    <input type="text" id="message-input" placeholder="Type your message here..." autocomplete="off" required />
     <button type="submit">Send</button>
   </form>
 
   <script>
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('message-input');
+    const body = document.body;
+    const darkToggle = document.getElementById('dark-toggle');
     const messagesDiv = document.getElementById('messages');
+    const chatForm = document.getElementById('chat-form');
+    const messageInput = document.getElementById('message-input');
+    const loadingIndicator = document.getElementById('loading');
+
+    // Load dark mode preference
+    if(localStorage.getItem('darkMode') === 'true') {
+      body.classList.add('dark');
+    }
+
+    darkToggle.addEventListener('click', () => {
+      body.classList.toggle('dark');
+      const isDark = body.classList.contains('dark');
+      localStorage.setItem('darkMode', isDark);
+      darkToggle.textContent = isDark ? '☀️' : '🌙';
+    });
 
     function appendMessage(text, sender) {
-      const div = document.createElement('div');
-      div.classList.add('message', sender);
-      div.textContent = text;
-      messagesDiv.appendChild(div);
+      if(messagesDiv.querySelector('p')) {
+        messagesDiv.innerHTML = '';
+      }
+      const msgDiv = document.createElement('div');
+      msgDiv.classList.add('message', sender);
+      msgDiv.textContent = text;
+      messagesDiv.appendChild(msgDiv);
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const message = input.value.trim();
-      if (!message) return;
-
-      appendMessage(message, 'user');
-      input.value = '';
-      input.disabled = true;
+    async function sendMessage(message) {
+      loadingIndicator.style.display = 'block';
+      chatForm.querySelector('button').disabled = true;
 
       try {
-        const response = await fetch('http://localhost:3000/chat', {
+        const response = await fetch('https://eloi-chat-backend.onrender.com/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ message }),
         });
 
-        if (!response.ok) throw new Error('Network response was not ok');
-
         const data = await response.json();
-        appendMessage(data.reply, 'eloi');
-      } catch (error) {
-        appendMessage("Sorry, Eloi couldn't respond right now.", 'eloi');
-        console.error('Chat error:', error);
-      } finally {
-        input.disabled = false;
-        input.focus();
+        loadingIndicator.style.display = 'none';
+        chatForm.querySelector('button').disabled = false;
+
+        if (data.reply) {
+          appendMessage(data.reply, 'eloi');
+        } else if(data.error) {
+          appendMessage('Eloi: Sorry, something went wrong.', 'eloi');
+        }
+      } catch (err) {
+        loadingIndicator.style.display = 'none';
+        chatForm.querySelector('button').disabled = false;
+        appendMessage('Eloi: Could not reach server.', 'eloi');
       }
+    }
+
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const userMessage = messageInput.value.trim();
+      if (!userMessage) return;
+
+      appendMessage(userMessage, 'user');
+      messageInput.value = '';
+
+      sendMessage(userMessage);
     });
   </script>
 </body>

@@ -1,51 +1,54 @@
 import express from "express";
 import cors from "cors";
-import OpenAI from "openai";
+import dotenv from "dotenv";
+import { Configuration, OpenAIApi } from "openai";
+
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Enable CORS so your frontend can talk to this backend
 app.use(cors());
+
+// Parse incoming JSON requests
 app.use(express.json());
 
-// Initialize OpenAI client with API key from env variables
-const openai = new OpenAI({
+// Configure OpenAI client with your API key from .env
+const configuration = new Configuration({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(configuration);
 
-// Simple GET route for testing
-app.get("/", (req, res) => {
-  res.send("Welcome to the Eloi chat backend! Use POST /chat to send messages.");
-});
-
-// POST /chat route to handle chat messages
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
-
     if (!message) {
-      return res.status(400).json({ error: "No message provided" });
+      return res.status(400).json({ error: "Message is required" });
     }
 
     // Send message to OpenAI chat completion
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // or another model you prefer
-      messages: [
-        { role: "system", content: "You are Eloi, a helpful AI friend." },
-        { role: "user", content: message },
-      ],
+    const completion = await openai.createChatCompletion({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: message }],
+      temperature: 0.7,
+      max_tokens: 1000,
     });
 
-    const responseMessage = completion.choices[0].message.content;
+    const reply = completion.data.choices[0].message.content.trim();
 
-    res.json({ reply: responseMessage });
+    res.json({ reply });
   } catch (error) {
-    console.error("OpenAI API error:", error);
-    res.status(500).json({ error: "Something went wrong" });
+    console.error("OpenAI API error:", error.response?.data || error.message || error);
+    res.status(500).json({ error: "Something went wrong with Eloi." });
   }
 });
 
-// Start server
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.send("Eloi Chat Backend is running.");
+});
+
 app.listen(port, () => {
-  console.log(`Eloi chat backend listening at http://localhost:${port}`);
+  console.log(`Eloi backend listening at http://localhost:${port}`);
 });
