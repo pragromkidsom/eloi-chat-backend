@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eloi Live Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: #f0e9ff;
+      display: flex;
+      flex-direction: column;
+      height: 90vh;
+    }
+    #messages {
+      flex-grow: 1;
+      border: 1px solid #ccc;
+      background: white;
+      padding: 1rem;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    .message {
+      margin-bottom: 1rem;
+    }
+    .message.user {
+      text-align: right;
+      color: #4b0082;
+    }
+    .message.eloi {
+      text-align: left;
+      color: #006400;
+    }
+    form {
+      display: flex;
+      gap: 0.5rem;
+    }
+    input[type="text"] {
+      flex-grow: 1;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 25px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+    button {
+      padding: 0 1.5rem;
+      border: none;
+      border-radius: 25px;
+      background-color: #4b0082;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #35006b;
+    }
+  </style>
+</head>
+<body>
+  <h1>Eloi Live Chat</h1>
+  <div id="messages">Say hello to Eloi!</div>
+  <form id="chat-form">
+    <input type="text" id="message-input" placeholder="Type a message..." autocomplete="off" required />
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('message-input');
+    const messagesDiv = document.getElementById('messages');
+
+    function appendMessage(text, sender) {
+      const div = document.createElement('div');
+      div.classList.add('message', sender);
+      div.textContent = text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage(message, 'user');
+      input.value = '';
+      input.disabled = true;
+
+      try {
+        const response = await fetch('http://localhost:3000/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const data = await response.json();
+        appendMessage(data.reply, 'eloi');
+      } catch (error) {
+        appendMessage("Sorry, Eloi couldn't respond right now.", 'eloi');
+        console.error('Chat error:', error);
+      } finally {
+        input.disabled = false;
+        input.focus();
+      }
+    });
+  </script>
+</body>
+</html>
